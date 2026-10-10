@@ -1,4 +1,4 @@
-# Porsche 911 Turbo (930) · 1975 — 3D viewer
+# Porsche 3D — six decades of Porsche, from the 1959 718 RSK to the 2022 911 GT3 Touring
 
 Vite + React + TypeScript + React Three Fiber.
 
@@ -23,9 +23,13 @@ Six Porsches, oldest to newest: **718 RSK (1959) · 911 Turbo 930 (1975) · Carr
 - Models were optimised with `gltf-transform optimize … --compress meshopt --texture-compress webp --texture-size 2048
   --flatten true --join true --instance false --palette false`.
 
-Model credits (Sketchfab): 718 RSK and Carrera GT by OUTPISTON, Cayenne and GT3 Touring by Ddiaz Design
-(all CC BY-NC-SA 4.0 — non-commercial), 911 Turbo S ("Porsche 911 with interior") by n.brizitskaya (CC BY 4.0),
-930 by vecarz.com. The footer credits whichever car is on screen.
+Model credits (Sketchfab): 718 RSK and Carrera GT by OUTPISTON, Cayenne and GT3 Touring by Ddiaz Design,
+930 by vecarz (all CC BY-NC-SA 4.0 — non-commercial), 911 Turbo S ("Porsche 911 with interior") by n.brizitskaya
+(CC BY 4.0). The footer credits whichever car is on screen.
+
+## License
+Code is MIT; the car models keep their own licenses (five of six are non-commercial). See [LICENSE](LICENSE).
+Unofficial fan project, not affiliated with Porsche AG.
 
 ## Features
 - Realistic PBR render: studio Lightformer environment, reflective floor, real-time sun shadow, bloom, AgX tone mapping

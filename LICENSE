@@ -1,4 +1,60 @@
-MIT License
+This repository contains two kinds of material under different licenses.
+
+1. Source code — MIT License
+   Applies to everything except the files listed in section 2, including src/,
+   scripts/ and the project configuration.
+
+2. Third-party 3D car models — their original licenses
+   The optimised models in public/models/ are adaptations (re-scaled, compressed,
+   and for the 911 Turbo S, with a door closed) of models published on Sketchfab.
+   They are NOT covered by the MIT License. Each keeps its author's license:
+
+   public/models/718-rsk.glb
+     "1959 Porsche 718 RSK" by OUTPISTON
+     https://sketchfab.com/3d-models/1959-porsche-718-rsk-dbf16392121249d19ff643ae0655a301
+     CC BY-NC-SA 4.0 — https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+   public/models/porsche930.glb
+     "Porsche 911 (930) Turbo 1975" by vecarz
+     https://sketchfab.com/3d-models/porsche-911930-turbo-1975-wwwvecarzcom-1b576d8b56e445fe8595e1b3fc07bcfe
+     CC BY-NC-SA 4.0 — https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+   public/models/carrera-gt.glb
+     "2004 Porsche Carrera GT" by OUTPISTON
+     https://sketchfab.com/3d-models/2004-porsche-carrera-gt-9d48aa751ab24becbf7110e93c8a7a1f
+     CC BY-NC-SA 4.0 — https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+   public/models/cayenne.glb
+     "2011 Porsche Cayenne" by Ddiaz Design
+     https://sketchfab.com/3d-models/2011-porsche-cayenne-c781eeb2c0e14f6e94d21feef6b5e7b3
+     CC BY-NC-SA 4.0 — https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+   public/models/911-turbo-s.glb
+     "Porsche 911 with interior" by n.brizitskaya
+     https://sketchfab.com/3d-models/porsche-911-with-interior-877b1bc1739f4a2bb65d62fd7ffd9f75
+     CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+
+   public/models/gt3-touring.glb
+     "2022 Porsche 911 GT3 Touring (992)" by Ddiaz Design
+     https://sketchfab.com/3d-models/2022-porsche-911-gt3-touring-992-a76364a3d50c4d78912a28250cb57be5
+     CC BY-NC-SA 4.0 — https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+   CC BY-NC-SA 4.0 means: credit the author, no commercial use, and adaptations
+   must be shared under the same license. Because five of the six cars are
+   non-commercial, the app as a whole may only be used and shared
+   non-commercially unless those models are replaced.
+
+   Porsche, the Porsche crest and model names are trademarks of
+   Dr. Ing. h.c. F. Porsche AG. This is an unofficial fan project, not affiliated
+   with or endorsed by Porsche.
+
+   Map data and 3D tiles shown at runtime (OpenStreetMap, OpenMapTiles,
+   OpenFreeMap, Google Photorealistic 3D Tiles via Cesium ion) are not part of
+   this repository and remain under their providers' terms.
+
+--------------------------------------------------------------------------------
+
+MIT License (applies to section 1)
 
 Copyright (c) 2026 zqf
 

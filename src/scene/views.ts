@@ -3,6 +3,8 @@ export type View = [number, number, number, number, number, number]
 export const VIEW_HOME: View = [5.2, 1.9, 6.2, 0, 0.6, 0]
 /** Showroom: a wider three-quarter view, aimed left of the car so it sits clear of the info panel. */
 export const VIEW_SHOWROOM: View = [6.2, 2.1, 8.4, -1.5, 0.7, 0.4]
+/** Showroom on a portrait phone: aim above the car so it sits below the info card. */
+export const VIEW_SHOWROOM_PORTRAIT: View = [4.6, 3.4, 6.4, 0, 1.9, 0]
 /** Behind and above the car (it faces +z), for driving in a city. */
 export const VIEW_CHASE: View = [0, 2.8, -8.5, 0, 0.9, 2]
 

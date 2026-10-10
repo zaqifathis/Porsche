@@ -6,12 +6,15 @@ import { Bloom, EffectComposer, ToneMapping, Vignette } from '@react-three/postp
 import { ToneMappingMode } from 'postprocessing'
 import { Car } from './Car'
 import { useStore } from '../store'
-import { VIEW_CHASE, VIEW_HOME, VIEW_SHOWROOM, carView, fitView, type View } from './views'
+import { VIEW_CHASE, VIEW_HOME, VIEW_SHOWROOM, VIEW_SHOWROOM_PORTRAIT, carView, fitView, type View } from './views'
 import { drive, resetDrive } from './drive'
 import { City } from '../city/City'
 import { PhotorealCity } from '../city/PhotorealCity'
 import { Showroom } from './Showroom'
 import { carById } from '../data/cars'
+
+/** Phones/tablets: fewer pixels, a cheaper floor reflection and no MSAA keep it smooth. */
+const LITE = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
 
 const THEME = {
   light: { bg: '#e9eaec', floor: '#d9dbde', env: 0.85, ambient: 0.2, fog: [25, 70] },
@@ -65,7 +68,7 @@ function StudioFloor({ dark }: { dark: boolean }) {
         <circleGeometry args={[70, 64]} />
         <MeshReflectorMaterial
           color={t.floor}
-          resolution={1024}
+          resolution={LITE ? 512 : 1024}
           blur={[400, 120]}
           mixBlur={1}
           mixStrength={dark ? 6 : 1.2}
@@ -111,7 +114,7 @@ function SunShadow({ dark, strength }: { dark: boolean; strength: number }) {
       ref={light}
       intensity={dark ? 0.1 : strength}
       castShadow
-      shadow-mapSize={[2048, 2048]}
+      shadow-mapSize={LITE ? [1024, 1024] : [2048, 2048]}
       shadow-bias={-0.0004}
       shadow-normalBias={0.02}
     >
@@ -136,7 +139,8 @@ function Rig({ controls }: { controls: React.RefObject<CameraControls | null> })
   useEffect(() => {
     if (first.current) return
     resetDrive()
-    if (mode !== 'city') controls.current?.setLookAt(...view(mode === 'showroom' ? VIEW_SHOWROOM : VIEW_HOME), true)
+    const showroom = aspectRef.current < 1 ? VIEW_SHOWROOM_PORTRAIT : VIEW_SHOWROOM
+    if (mode !== 'city') controls.current?.setLookAt(...view(mode === 'showroom' ? showroom : VIEW_HOME), true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, city])
 
@@ -195,7 +199,7 @@ export function Scene({ controlsRef }: { controlsRef: React.RefObject<CameraCont
   return (
     <Canvas
       shadows
-      dpr={[1, 2]}
+      dpr={LITE ? [1, 1.5] : [1, 2]}
       camera={{ position: [9, 3.2, 10], fov: 32, near: 0.1, far: 4000 }}
       gl={{ antialias: false, powerPreference: 'high-performance' }}
     >
@@ -241,7 +245,7 @@ export function Scene({ controlsRef }: { controlsRef: React.RefObject<CameraCont
       />
       <Rig controls={controlsRef} />
 
-      <EffectComposer multisampling={4}>
+      <EffectComposer multisampling={LITE ? 0 : 4}>
         <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.2} intensity={dark ? 1.4 : 0.25} />
         <ToneMapping mode={ToneMappingMode.AGX} />
         <Vignette offset={0.3} darkness={dark ? 0.7 : 0.35} />
