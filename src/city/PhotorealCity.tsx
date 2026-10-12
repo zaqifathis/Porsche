@@ -122,9 +122,46 @@ export function PhotorealCity({ city, token }: Props) {
     setCityStatus('')
   }
 
+  /**
+   * Until the street height is known the tiles sit tens of metres off (above the chase camera, or far
+   * below it), so the street under the car is out of view and never streams in — and the raycast in
+   * settle() has nothing to hit. A second, virtual camera looking straight down on the car makes the
+   * renderer load that ground regardless of where the real camera points; it's dropped once settled.
+   */
+  const scout = useMemo(() => {
+    const c = new THREE.PerspectiveCamera(40, 1, 10, 20000)
+    c.up.set(0, 0, -1)
+    return c
+  }, [])
+  const scouting = useRef(false)
+  const scoutUpdate = () => {
+    const t = tiles.current
+    if (!t) return
+    if (settled.current) {
+      if (scouting.current) t.deleteCamera(scout)
+      scouting.current = false
+      return
+    }
+    if (!scouting.current) {
+      t.setCamera(scout)
+      t.setResolution(scout, 512, 512)
+      scouting.current = true
+    }
+    scout.position.set(drive.position.x, 700, drive.position.z)
+    scout.lookAt(drive.position.x, -1000, drive.position.z)
+    scout.updateMatrixWorld()
+  }
+  useEffect(
+    () => () => {
+      if (scouting.current) tiles.current?.deleteCamera(scout)
+    },
+    [scout],
+  )
+
   const poll = useRef(0)
   useFrame((_, dt) => {
     sizeCache()
+    scoutUpdate()
     if (settled.current) return
     poll.current -= dt
     if (poll.current > 0) return

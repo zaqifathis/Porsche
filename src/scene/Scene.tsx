@@ -11,6 +11,7 @@ import { drive, resetDrive } from './drive'
 import { City } from '../city/City'
 import { PhotorealCity } from '../city/PhotorealCity'
 import { Showroom } from './Showroom'
+import { Game } from '../game/Game'
 import { carById } from '../data/cars'
 import { LITE } from './device'
 
@@ -224,8 +225,10 @@ export function Scene({ controlsRef }: { controlsRef: React.RefObject<CameraCont
         {inCity ? (
           <>
             {!dark && <Sky distance={3000} sunPosition={[3, 10, 2]} turbidity={6} rayleigh={1.2} mieCoefficient={0.004} />}
-            {photoreal && <PhotorealCity city={city} token={ionToken} />}
+            {/* keyed per city: its ground offset is measured once per city */}
+            {photoreal && <PhotorealCity key={`${city.lat},${city.lon}`} city={city} token={ionToken} />}
             <City key={photoreal ? 'data' : 'osm'} city={city} dark={dark} visual={!photoreal} onPlaced={onPlaced} />
+            <Game />
           </>
         ) : (
           <StudioFloor dark={dark} />

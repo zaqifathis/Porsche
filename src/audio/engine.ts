@@ -183,6 +183,30 @@ class EngineSound {
     this.applyVolume(0.03)
   }
 
+  /** Short game cue: a bright two-note chime for a diamond, a rising sweep for the portal. */
+  cue(kind: 'gem' | 'portal') {
+    const ctx = this.ctx
+    if (!ctx || this.muted) return
+    const t = ctx.currentTime
+    const out = ctx.createGain()
+    out.connect(ctx.destination)
+    const notes = kind === 'gem' ? [[1318.5, 0], [1975.5, 0.07]] : [[220, 0]]
+    for (const [f, at] of notes) {
+      const o = ctx.createOscillator()
+      const g = ctx.createGain()
+      o.type = kind === 'gem' ? 'triangle' : 'sawtooth'
+      o.frequency.setValueAtTime(f, t + at)
+      if (kind === 'portal') o.frequency.exponentialRampToValueAtTime(1760, t + 1.1)
+      const len = kind === 'gem' ? 0.35 : 1.2
+      g.gain.setValueAtTime(0.0001, t + at)
+      g.gain.exponentialRampToValueAtTime(kind === 'gem' ? 0.22 : 0.08, t + at + 0.015)
+      g.gain.exponentialRampToValueAtTime(0.0001, t + at + len)
+      o.connect(g).connect(out)
+      o.start(t + at)
+      o.stop(t + at + len + 0.05)
+    }
+  }
+
   /** Stop all audio (used when the module is hot-reloaded in dev). */
   close() {
     void this.ctx?.close()

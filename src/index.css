@@ -1384,3 +1384,152 @@ a {
     text-overflow: ellipsis;
   }
 }
+
+/* ---------- city game: diamond hunt ---------- */
+.game-hud {
+  --game: #0aa5c2;
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: rise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+:root[data-theme='dark'] .game-hud {
+  --game: #38e8ff;
+}
+.game-hud.portal {
+  --game: #8a3df0;
+  border-color: color-mix(in srgb, var(--game) 45%, transparent);
+}
+:root[data-theme='dark'] .game-hud.portal {
+  --game: #b26bff;
+}
+.game-count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.game-count strong {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--game);
+  animation: game-bump 0.35s ease-out;
+}
+.game-count > span {
+  color: var(--muted);
+}
+.game-gem {
+  align-self: center;
+  width: 12px;
+  height: 16px;
+  background: var(--game);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.game-label {
+  color: var(--muted);
+}
+.game-hud.portal .game-label {
+  color: var(--game);
+  font-weight: 600;
+}
+.game-compass {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--chip);
+}
+.game-needle {
+  width: 12px;
+  height: 14px;
+  background: var(--game);
+  clip-path: polygon(50% 0, 100% 100%, 50% 75%, 0 100%);
+  transition: opacity 0.2s;
+}
+.game-dist {
+  min-width: 52px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+@keyframes game-bump {
+  0% { transform: scale(1.6); }
+  100% { transform: scale(1); }
+}
+.minimap-goal span {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background: #38e8ff;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  filter: drop-shadow(0 0 2px #0b3a44);
+}
+.minimap-goal.portal span {
+  background: #b26bff;
+  clip-path: circle(50%);
+}
+
+/* time travel: wash the screen out in a purple-white bloom, swap the city underneath, fade back */
+.warp {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 55%, #fff 0%, #e6d4ff 22%, #8a3df0 55%, #1a0633 100%);
+  animation: warp 2.2s ease-in-out forwards;
+}
+@keyframes warp {
+  0% { opacity: 0; transform: scale(0.2); border-radius: 50%; }
+  35% { opacity: 1; transform: scale(1.4); border-radius: 0; }
+  60% { opacity: 1; transform: scale(1.4); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+
+@media (max-width: 720px) {
+  .game-hud {
+    top: calc(108px + env(safe-area-inset-top));
+    left: 12px;
+    right: 146px;
+    transform: none;
+    gap: 8px;
+    padding: 4px 6px 4px 10px;
+  }
+  .game-label {
+    display: none;
+  }
+}
+.game-guide {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--chip);
+  pointer-events: auto;
+}
+.game-guide button {
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.game-guide button.on {
+  background: var(--glass-strong);
+  color: var(--fg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}

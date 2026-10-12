@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { PAINTS, type Paint } from './data/car'
 import { CARS, DEFAULT_CAR } from './data/cars'
+import { CITIES } from './data/cities'
+import { GEMS_PER_CITY, type Guide } from './game/state'
 
 export interface CityPick {
   name: string
@@ -10,6 +12,7 @@ export interface CityPick {
 
 const TOKEN_KEY = 'porsche930.ionToken'
 const LOOK_KEY = 'porsche930.cityLook'
+const GUIDE_KEY = 'porsche930.guide'
 const readLocal = (k: string) => {
   try {
     return localStorage.getItem(k) ?? ''
@@ -59,6 +62,16 @@ interface State {
   exitCity: () => void
   setCityStatus: (s: string) => void
   toggleMuted: () => void
+  /** Diamonds collected in the current city (the portal opens at GEMS_PER_CITY). */
+  gems: number
+  collectGem: () => void
+  /** True during the time-travel transition to the next city. */
+  warping: boolean
+  /** Fly through the portal: flash out, load a random other city, flash back in. */
+  warp: () => void
+  /** How the way to the next diamond is shown. */
+  guide: Guide
+  setGuide: (g: Guide) => void
   dark: boolean
   paint: Paint
   autoRotate: boolean
@@ -113,13 +126,35 @@ export const useStore = create<State>((set) => ({
       mode: 'city',
       city,
       mapOpen: false,
+      gems: 0,
       photorealError: '',
       // photoreal tiles are photographed in daylight: night mode isn't offered there
       dark: s.cityLook === 'photoreal' && s.ionToken ? false : s.dark,
     })),
-  exitCity: () => set({ mode: 'studio', city: null, cityStatus: '' }),
+  exitCity: () => set({ mode: 'studio', city: null, cityStatus: '', gems: 0, warping: false }),
   setCityStatus: (cityStatus) => set({ cityStatus }),
   toggleMuted: () => set((s) => ({ muted: !s.muted })),
+  gems: 0,
+  collectGem: () => set((s) => ({ gems: Math.min(GEMS_PER_CITY, s.gems + 1) })),
+  warping: false,
+  warp: () => {
+    if (useStore.getState().warping) return
+    set({ warping: true })
+    // swap the city while the screen is washed out, then let the flash fade
+    setTimeout(() => {
+      const s = useStore.getState()
+      if (!s.warping) return // left the city mid-warp
+      const others = CITIES.filter((c) => c.name !== s.city?.name)
+      const next = others[Math.floor(Math.random() * others.length)]
+      s.enterCity({ name: next.name, lat: next.lat, lon: next.lon })
+    }, 900)
+    setTimeout(() => set({ warping: false }), 2200)
+  },
+  guide: readLocal(GUIDE_KEY) === 'arrow' ? 'arrow' : 'route',
+  setGuide: (guide) => {
+    writeLocal(GUIDE_KEY, guide)
+    set({ guide })
+  },
   dark: false,
   paint: PAINTS[1],
   autoRotate: false,

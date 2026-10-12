@@ -5,6 +5,7 @@ import { VIEW_HOME, fitView } from './scene/views'
 import { CityBadge, DriveHud, InfoPanel, Loader, PaintPicker, ShowroomOverlay, Toolbar, TopBar } from './components/Overlay'
 import { MapPicker } from './components/MapPicker'
 import { MiniMap } from './components/MiniMap'
+import { GameHud } from './game/GameHud'
 import { engine } from './audio/engine'
 import { bindDriveKeys, drive, resetDrive } from './scene/drive'
 import { photorealActive, useStore } from './store'
@@ -69,6 +70,7 @@ export default function App() {
           <CityBadge />
           <DriveHud />
           <MiniMap />
+          <GameHud />
         </>
       )}
       <MapPicker />

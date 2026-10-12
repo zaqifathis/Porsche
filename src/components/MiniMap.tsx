@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css'
 import { useStore } from '../store'
 import { drive } from '../scene/drive'
 import { Projector } from '../city/geo'
+import { GEMS_PER_CITY, game } from '../game/state'
 
 const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 
@@ -33,6 +34,10 @@ export function MiniMap() {
       icon: L.divIcon({ className: 'minimap-car', html: '<span></span>', iconSize: [22, 22], iconAnchor: [11, 11] }),
       interactive: false,
     }).addTo(map)
+    const goal = L.marker([city.lat, city.lon], {
+      icon: L.divIcon({ className: 'minimap-goal', html: '<span></span>', iconSize: [14, 14], iconAnchor: [7, 7] }),
+      interactive: false,
+    })
 
     // follow the car ~10×/s; local +z is south, so compass bearing = atan2(east, north)
     let last = 0
@@ -47,6 +52,13 @@ export function MiniMap() {
       const bearing = (Math.atan2(Math.sin(drive.heading), -Math.cos(drive.heading)) * 180) / Math.PI
       const span = arrow.getElement()?.firstElementChild as HTMLElement | null
       if (span) span.style.transform = `rotate(${bearing}deg)`
+      // the diamond (or portal) being hunted
+      if (game.target) {
+        const g = proj.toLonLat(game.target.x, game.target.z)
+        goal.setLatLng([g.lat, g.lon])
+        if (!map.hasLayer(goal)) goal.addTo(map)
+        goal.getElement()?.classList.toggle('portal', useStore.getState().gems >= GEMS_PER_CITY)
+      } else if (map.hasLayer(goal)) goal.remove()
     }
     raf = requestAnimationFrame(tick)
     return () => {
