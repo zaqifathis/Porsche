@@ -12,9 +12,7 @@ import { City } from '../city/City'
 import { PhotorealCity } from '../city/PhotorealCity'
 import { Showroom } from './Showroom'
 import { carById } from '../data/cars'
-
-/** Phones/tablets: fewer pixels, a cheaper floor reflection and no MSAA keep it smooth. */
-const LITE = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+import { LITE } from './device'
 
 const THEME = {
   light: { bg: '#e9eaec', floor: '#d9dbde', env: 0.85, ambient: 0.2, fog: [25, 70] },
@@ -200,7 +198,7 @@ export function Scene({ controlsRef }: { controlsRef: React.RefObject<CameraCont
     <Canvas
       shadows
       dpr={LITE ? [1, 1.5] : [1, 2]}
-      camera={{ position: [9, 3.2, 10], fov: 32, near: 0.1, far: 4000 }}
+      camera={{ position: [9, 3.2, 10], fov: 32, near: 0.25, far: 4000 }}
       gl={{ antialias: false, powerPreference: 'high-performance' }}
     >
       <color attach="background" args={[t.bg]} />
@@ -247,7 +245,7 @@ export function Scene({ controlsRef }: { controlsRef: React.RefObject<CameraCont
 
       <EffectComposer multisampling={LITE ? 0 : 4}>
         <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.2} intensity={dark ? 1.4 : 0.25} />
-        <ToneMapping mode={ToneMappingMode.AGX} />
+        <ToneMapping mode={photoreal ? ToneMappingMode.NEUTRAL : ToneMappingMode.AGX} />
         <Vignette offset={0.3} darkness={dark ? 0.7 : 0.35} />
       </EffectComposer>
     </Canvas>

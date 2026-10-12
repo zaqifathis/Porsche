@@ -284,13 +284,10 @@ export function PaintPicker() {
 }
 
 export function Loader() {
-  const { progress, active } = useProgress()
-  const loaded = useStore((s) => s.loaded)
-  // latch: city tiles stream through the same loading manager later; don't bring the splash back
-  const [done, setDone] = useState(false)
-  useEffect(() => {
-    if (loaded && !active) setDone(true)
-  }, [loaded, active])
+  const { progress } = useProgress()
+  // the splash ends once the first car is rigged and on screen; later downloads (other cars,
+  // city tiles) go through the same loading manager and must not bring it back
+  const done = useStore((s) => s.loaded)
   return (
     <div className={`loader ${done ? 'done' : ''}`}>
       <span className="wordmark">PORSCHE</span>

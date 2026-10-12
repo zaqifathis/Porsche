@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { TilesAttributionOverlay, TilesPlugin, TilesRenderer } from '3d-tiles-renderer/r3f'
 import {
@@ -8,11 +8,20 @@ import {
   GLTFExtensionsPlugin,
   ReorientationPlugin,
   TileCompressionPlugin,
+  TilesFadePlugin,
   UnloadTilesPlugin,
 } from '3d-tiles-renderer/plugins'
 import type { TilesRenderer as TilesRendererImpl } from '3d-tiles-renderer/three'
 import { drive } from '../scene/drive'
 import { useStore, type CityPick } from '../store'
+import { LITE } from '../scene/device'
+
+/**
+ * Detail vs. bandwidth: screen-space error (px) a tile may show before a finer one is loaded.
+ * The plugin's "recommended" value is 20 (coarse); lower is sharper.
+ */
+const ERROR_TARGET = LITE ? 12 : 6
+const GB = 1024 ** 3
 
 /** Google Photorealistic 3D Tiles, as served through Cesium ion. */
 const GOOGLE_PHOTOREAL_ASSET = '2275207'
@@ -47,15 +56,38 @@ export function PhotorealCity({ city, token }: Props) {
     [draco],
   )
 
-  /** The photos already contain the lighting: show tiles unlit. */
+  const anisotropy = useThree((s) => s.gl.capabilities.getMaxAnisotropy())
+
+  /**
+   * The photos already contain the lighting: show tiles unlit. Textures get full anisotropic
+   * filtering so roads and facades seen at a glancing angle stay sharp instead of smearing.
+   */
   const prepare = (scene: THREE.Object3D) => {
     scene.traverse((o) => {
       const m = o as THREE.Mesh
       if (!m.isMesh) return
       const orig = m.material as THREE.MeshStandardMaterial
+      if (orig.map) orig.map.anisotropy = anisotropy
+      if ((orig as THREE.Material).type === 'MeshBasicMaterial') return
       m.material = new THREE.MeshBasicMaterial({ map: orig.map, side: orig.side })
       orig.dispose() // the texture now belongs to the basic material
     })
+  }
+
+  /**
+   * A bigger tile cache. When the cache is full the renderer stops requesting sharper tiles, so
+   * the default 0.4 GB would cap detail long before the errorTarget does. Applied once the
+   * renderer exists (the ref isn't set yet during the first effects).
+   */
+  const cacheSized = useRef(false)
+  const sizeCache = () => {
+    const cache = tiles.current?.lruCache
+    if (!cache || cacheSized.current) return
+    cache.minBytesSize = (LITE ? 0.35 : 1.0) * GB
+    cache.maxBytesSize = (LITE ? 0.5 : 1.5) * GB
+    cache.minSize = LITE ? 6000 : 12000
+    cache.maxSize = LITE ? 8000 : 16000
+    cacheSized.current = true
   }
 
   /**
@@ -92,6 +124,7 @@ export function PhotorealCity({ city, token }: Props) {
 
   const poll = useRef(0)
   useFrame((_, dt) => {
+    sizeCache()
     if (settled.current) return
     poll.current -= dt
     if (poll.current > 0) return
@@ -136,6 +169,7 @@ export function PhotorealCity({ city, token }: Props) {
         <TilesRenderer
           key={`${token}:${city.lat},${city.lon}`}
           ref={tiles}
+          errorTarget={ERROR_TARGET}
           onLoadModel={({ scene }) => prepare(scene)}
           onLoadError={({ tile, error }) => {
             // the tileset itself was refused (bad/expired token, no access): fall back to the blocks city
@@ -146,11 +180,15 @@ export function PhotorealCity({ city, token }: Props) {
         >
           <TilesPlugin
             plugin={CesiumIonAuthPlugin}
-            args={[{ apiToken: token, assetId: GOOGLE_PHOTOREAL_ASSET, autoRefreshToken: true }]}
+            // our own errorTarget instead of the plugin's coarse "recommended" 20
+            args={[{ apiToken: token, assetId: GOOGLE_PHOTOREAL_ASSET, autoRefreshToken: true, useRecommendedSettings: false }]}
           />
           <TilesPlugin plugin={GLTFExtensionsPlugin} args={[{ dracoLoader: draco }]} />
           <TilesPlugin plugin={ReorientationPlugin} args={[{ lat: city.lat * DEG, lon: city.lon * DEG, height: 0, recenter: true }]} />
-          <TilesPlugin plugin={TileCompressionPlugin} />
+          {/* keep mipmaps (the default turns them off, which makes distant textures shimmer) */}
+          <TilesPlugin plugin={TileCompressionPlugin} args={[{ disableMipmaps: false }]} />
+          {/* cross-fade between detail levels instead of popping */}
+          <TilesPlugin plugin={TilesFadePlugin} args={[{ fadeDuration: 400 }]} />
           <TilesPlugin plugin={UnloadTilesPlugin} />
           <TilesAttributionOverlay className="tiles-credits" />
         </TilesRenderer>
