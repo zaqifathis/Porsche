@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useProgress } from '@react-three/drei'
-import { photorealActive, useStore } from '../store'
+import { photorealActive, useStore, CAM_VIEWS, type CamView } from '../store'
 import { PAINTS } from '../data/car'
 import { CARS, carById, type Source } from '../data/cars'
 import { drive } from '../scene/drive'
 import {
+  IconBird,
+  IconChase,
   IconClose,
+  IconCockpit,
   IconDownload,
   IconInfo,
   IconMap,
@@ -299,9 +302,51 @@ export function Loader() {
   )
 }
 
+const CAM_LABEL: Record<CamView, { label: string; icon: React.ReactNode }> = {
+  interior: { label: 'Cockpit', icon: <IconCockpit width={16} height={16} /> },
+  chase: { label: 'Chase', icon: <IconChase width={16} height={16} /> },
+  far: { label: 'Bird’s-eye', icon: <IconBird width={16} height={16} /> },
+}
+
+/** Driving camera picker (city only); C cycles through the views. */
+function CamViews() {
+  const camView = useStore((s) => s.camView)
+  const setCamView = useStore((s) => s.setCamView)
+  return (
+    <div className="cam-views" role="radiogroup" aria-label="Camera">
+      {CAM_VIEWS.map((v) => (
+        <button
+          key={v}
+          role="radio"
+          aria-checked={camView === v}
+          className={camView === v ? 'on' : ''}
+          onClick={() => setCamView(v)}
+          title={`${CAM_LABEL[v].label} view (C to switch)`}
+          aria-label={`${CAM_LABEL[v].label} view`}
+        >
+          {CAM_LABEL[v].icon}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /** Speed readout + key hint; on touch screens also a small drive pad. */
 export function DriveHud() {
   const speed = useRef<HTMLSpanElement>(null)
+  const inCity = useStore((s) => s.mode === 'city')
+
+  useEffect(() => {
+    if (!inCity) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'KeyC' || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return
+      const el = e.target as HTMLElement | null
+      if (el?.tagName === 'INPUT' || el?.closest?.('.map-overlay')) return
+      useStore.getState().cycleCamView()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [inCity])
   useEffect(() => {
     let raf = 0
     const tick = () => {
@@ -323,9 +368,12 @@ export function DriveHud() {
 
   return (
     <div className="drive-hud">
-      <div className="speedo">
-        <span ref={speed} className="speed-value">0</span>
-        <span className="speed-unit">km/h</span>
+      <div className="speedo-row">
+        {inCity && <CamViews />}
+        <div className="speedo">
+          <span ref={speed} className="speed-value">0</span>
+          <span className="speed-unit">km/h</span>
+        </div>
       </div>
       <div className="keys-hint">
         <kbd>↑</kbd>
@@ -333,6 +381,12 @@ export function DriveHud() {
         <kbd>←</kbd>
         <kbd>→</kbd>
         <span>drive</span>
+        {inCity && (
+          <>
+            <kbd className="kbd-gap">C</kbd>
+            <span>view</span>
+          </>
+        )}
       </div>
       <div className="touch-pad">
         <button {...hold('left')} aria-label="Steer left">←</button>

@@ -44,6 +44,8 @@ export interface CarDef {
     /** Everything that turns with the wheel (tyre, rim, disc). Calipers excluded. */
     wheels: RegExp
   }
+  /** Nudge (x left, y up, z forward; metres) for the interior camera, if the estimate misses the seat. */
+  cockpit?: [number, number, number]
   drive: { topSpeed: number; accel: number }
   engine: { cylinders: 4 | 6 | 8 | 10; redline: number; idle: number; turbo: boolean; airCooled: boolean; gearTops: number[] }
 }
@@ -91,6 +93,7 @@ export const CARS: CarDef[] = [
       tyres: /mm_tyre$/,
       wheels: /mm_(tyre|wheel|rotor)$/,
     },
+    cockpit: [0, 0.17, -0.25],
     drive: { topSpeed: 240, accel: 9 },
     engine: { cylinders: 4, redline: 8000, idle: 1100, turbo: false, airCooled: true, gearTops: [70, 110, 150, 195, 240] },
   },
@@ -229,6 +232,7 @@ export const CARS: CarDef[] = [
       tyres: /^Tire$/,
       wheels: /^(Tire|material|Disk)$/,
     },
+    cockpit: [0, -0.05, -0.35],
     drive: { topSpeed: 258, accel: 11 },
     engine: { cylinders: 8, redline: 6700, idle: 700, turbo: false, airCooled: false, gearTops: [55, 95, 140, 180, 220, 258] },
   },
@@ -278,6 +282,7 @@ export const CARS: CarDef[] = [
       tyres: /^tires$/,
       wheels: /^(tires|rim_black|rim_chrome|Discs)$/,
     },
+    cockpit: [0, 0, -0.3],
     drive: { topSpeed: 330, accel: 22 },
     engine: { cylinders: 6, redline: 7200, idle: 850, turbo: true, airCooled: false, gearTops: [60, 95, 135, 175, 215, 255, 295, 330] },
   },
@@ -323,6 +328,7 @@ export const CARS: CarDef[] = [
       tyres: /Wheel1A/,
       wheels: /Wheel1A/,
     },
+    cockpit: [0, 0, -0.35],
     drive: { topSpeed: 320, accel: 19 },
     engine: { cylinders: 6, redline: 9000, idle: 950, turbo: false, airCooled: false, gearTops: [75, 115, 160, 205, 255, 320] },
   },

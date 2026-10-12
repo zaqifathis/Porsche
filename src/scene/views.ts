@@ -7,6 +7,8 @@ export const VIEW_SHOWROOM: View = [6.2, 2.1, 8.4, -1.5, 0.7, 0.4]
 export const VIEW_SHOWROOM_PORTRAIT: View = [4.6, 3.4, 6.4, 0, 1.9, 0]
 /** Behind and above the car (it faces +z), for driving in a city. */
 export const VIEW_CHASE: View = [0, 2.8, -8.5, 0, 0.9, 2]
+/** High and far behind, looking down over the car at the road ahead. */
+export const VIEW_FAR: View = [0, 15, -27, 0, 0.4, 8]
 
 /** Pull the camera back on narrow (portrait) screens so the whole car fits. */
 export function fitView(v: View, aspect: number): View {

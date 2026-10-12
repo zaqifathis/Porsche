@@ -5,8 +5,8 @@ import { Bvh, CameraControls, Environment, Grid, Lightformer, MeshReflectorMater
 import { Bloom, EffectComposer, ToneMapping, Vignette } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
 import { Car } from './Car'
-import { useStore } from '../store'
-import { VIEW_CHASE, VIEW_HOME, VIEW_SHOWROOM, VIEW_SHOWROOM_PORTRAIT, carView, fitView, type View } from './views'
+import { useStore, type CamView } from '../store'
+import { VIEW_CHASE, VIEW_FAR, VIEW_HOME, VIEW_SHOWROOM, VIEW_SHOWROOM_PORTRAIT, carView, fitView, type View } from './views'
 import { drive, resetDrive } from './drive'
 import { City } from '../city/City'
 import { PhotorealCity } from '../city/PhotorealCity'
@@ -122,6 +122,19 @@ function SunShadow({ dark, strength }: { dark: boolean; strength: number }) {
   )
 }
 
+/** Interior camera: wide lens, short near plane (the dashboard is close); the outside views keep the long lens. */
+const FOV = { interior: 68, outside: 32 }
+const NEAR = { interior: 0.08, outside: 0.25 }
+
+/** Put an outside driving view (behind / far behind) around the car. */
+function lookFromBehind(c: CameraControls, v: CamView, smooth: boolean) {
+  const aspect = window.innerWidth / window.innerHeight
+  c.setLookAt(...carView(fitView(v === 'far' ? VIEW_FAR : VIEW_CHASE, aspect), drive.position, drive.heading), smooth)
+}
+
+const eyeW = new THREE.Vector3()
+const lookW = new THREE.Vector3()
+
 function Rig({ controls }: { controls: React.RefObject<CameraControls | null> }) {
   const aspect = useThree((s) => s.size.width / s.size.height)
   const aspectRef = useRef(aspect)
@@ -131,6 +144,7 @@ function Rig({ controls }: { controls: React.RefObject<CameraControls | null> })
   const first = useRef(true)
   const mode = useStore((s) => s.mode)
   const city = useStore((s) => s.city)
+  const camView = useStore((s) => s.camView)
 
   const view = (v: View) => carView(fitView(v, aspectRef.current), drive.position, drive.heading)
 
@@ -151,10 +165,46 @@ function Rig({ controls }: { controls: React.RefObject<CameraControls | null> })
     c.setLookAt(...view(VIEW_HOME), true)
   })
 
-  useFrame((_, dt) => {
+  // switching driving camera in a city (the interior one is placed every frame below)
+  useEffect(() => {
+    const c = controls.current
+    if (!c) return
+    const driving = mode === 'city'
+    c.enabled = !(driving && camView === 'interior')
+    if (driving && camView !== 'interior' && !drive.locked) lookFromBehind(c, camView, true)
+  }, [camView, mode, controls])
+
+  useFrame((state, dt) => {
     const c = controls.current
     if (!c) return
     const st = useStore.getState()
+    const interior = st.mode === 'city' && st.camView === 'interior'
+
+    const cam = state.camera as THREE.PerspectiveCamera
+    const fovGoal = interior ? FOV.interior : FOV.outside
+    const fov = Math.abs(cam.fov - fovGoal) < 0.05 ? fovGoal : THREE.MathUtils.damp(cam.fov, fovGoal, 6, dt)
+    const near = interior ? NEAR.interior : NEAR.outside
+    if (fov !== cam.fov || near !== cam.near) {
+      cam.fov = fov
+      cam.near = near
+      cam.updateProjectionMatrix()
+    }
+
+    if (interior) {
+      // driver's seat: eye fixed in the car, looking down the road and a little into the turn
+      const h = drive.heading, cos = Math.cos(h), sin = Math.sin(h)
+      const { x, y, z } = drive.eye
+      eyeW.set(drive.position.x + x * cos + z * sin, drive.position.y + y, drive.position.z - x * sin + z * cos)
+      const yaw = h + drive.steer * 0.35
+      lookW.set(eyeW.x + Math.sin(yaw) * 10, eyeW.y - 0.7, eyeW.z + Math.cos(yaw) * 10)
+      // keep the controls' own state in step (so leaving the cockpit glides out from here), but set the
+      // camera directly too: the controls only apply it next frame, which would lag a moving car
+      c.setLookAt(eyeW.x, eyeW.y, eyeW.z, lookW.x, lookW.y, lookW.z, false)
+      cam.position.copy(eyeW)
+      cam.lookAt(lookW)
+      return
+    }
+
     if (st.autoRotate) c.azimuthAngle += dt * 0.25
     // city chase cam: while driving (and not being dragged) swing round behind the car
     else if (st.mode === 'city' && Math.abs(drive.speed) > 1 && c.currentAction === 0) {
@@ -191,8 +241,9 @@ export function Scene({ controlsRef }: { controlsRef: React.RefObject<CameraCont
   // photoreal tiles stay sharp much further out than the OSM blocks
   const t = photoreal && !dark ? { ...base, fog: [400, 2600] } : base
   const onPlaced = useCallback(() => {
-    const aspect = window.innerWidth / window.innerHeight
-    controlsRef.current?.setLookAt(...carView(fitView(VIEW_CHASE, aspect), drive.position, drive.heading), true)
+    const c = controlsRef.current
+    const v = useStore.getState().camView
+    if (c && v !== 'interior') lookFromBehind(c, v, true)
   }, [controlsRef])
 
   return (
@@ -240,7 +291,7 @@ export function Scene({ controlsRef }: { controlsRef: React.RefObject<CameraCont
         ref={controlsRef}
         makeDefault
         minDistance={2.6}
-        maxDistance={inCity ? 30 : 24}
+        maxDistance={inCity ? 45 : 24}
         maxPolarAngle={Math.PI / 2 - 0.04}
         smoothTime={0.6}
       />

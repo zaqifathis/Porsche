@@ -14,6 +14,8 @@ export const drive = {
   collide: null as ((x: number, z: number) => boolean) | null,
   /** Optional "put me back on the road" (set by the city). */
   respawn: null as (() => void) | null,
+  /** Driver's eye in car space (+z forward, +x = the car's left), set per car model. */
+  eye: new THREE.Vector3(0.33, 1.05, 0.2),
   /** Optional ground height under (x, z), for terrain (set by the photoreal city). */
   ground: null as ((x: number, z: number) => number | null) | null,
 }

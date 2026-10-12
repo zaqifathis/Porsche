@@ -87,3 +87,26 @@ export const IconMute = (p: P) => (
     <path d="M17 9l5 6M22 9l-5 6" />
   </svg>
 )
+
+export const IconCockpit = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="13" r="8" />
+    <circle cx="12" cy="13" r="2" />
+    <path d="M4.5 11.5h5.5M14 11.5h5.5M12 15v6" />
+  </svg>
+)
+
+export const IconChase = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M5 17v-4l2-5h10l2 5v4z" />
+    <path d="M5 13h14M8 17v2M16 17v2" />
+  </svg>
+)
+
+export const IconBird = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M3 20l4-9h10l4 9z" />
+    <path d="M9.5 16h5" />
+    <path d="M12 3v4M10 5l2 2 2-2" />
+  </svg>
+)

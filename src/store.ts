@@ -13,6 +13,7 @@ export interface CityPick {
 const TOKEN_KEY = 'porsche930.ionToken'
 const LOOK_KEY = 'porsche930.cityLook'
 const GUIDE_KEY = 'porsche930.guide'
+const CAM_KEY = 'porsche930.camView'
 const readLocal = (k: string) => {
   try {
     return localStorage.getItem(k) ?? ''
@@ -32,6 +33,9 @@ const writeLocal = (k: string, v: string) => {
 const ENV_TOKEN = (import.meta.env.VITE_CESIUM_ION_TOKEN as string | undefined) ?? ''
 
 export type CityLook = 'photoreal' | 'osm'
+/** Driving camera in a city: from the driver's seat, behind the car, or high and far behind. */
+export type CamView = 'interior' | 'chase' | 'far'
+export const CAM_VIEWS: CamView[] = ['interior', 'chase', 'far']
 
 interface State {
   /** Cesium ion access token for Google Photorealistic 3D Tiles ('' = none). */
@@ -72,6 +76,10 @@ interface State {
   /** How the way to the next diamond is shown. */
   guide: Guide
   setGuide: (g: Guide) => void
+  camView: CamView
+  setCamView: (v: CamView) => void
+  /** Step to the next camera view (the C key). */
+  cycleCamView: () => void
   dark: boolean
   paint: Paint
   autoRotate: boolean
@@ -154,6 +162,15 @@ export const useStore = create<State>((set) => ({
   setGuide: (guide) => {
     writeLocal(GUIDE_KEY, guide)
     set({ guide })
+  },
+  camView: (CAM_VIEWS as string[]).includes(readLocal(CAM_KEY)) ? (readLocal(CAM_KEY) as CamView) : 'chase',
+  setCamView: (camView) => {
+    writeLocal(CAM_KEY, camView)
+    set({ camView })
+  },
+  cycleCamView: () => {
+    const { camView, setCamView } = useStore.getState()
+    setCamView(CAM_VIEWS[(CAM_VIEWS.indexOf(camView) + 1) % CAM_VIEWS.length])
   },
   dark: false,
   paint: PAINTS[1],

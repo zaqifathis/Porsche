@@ -22,6 +22,14 @@ export function Car({ def, onRig, onMove }: Props) {
   const lightLevel = useRef(0)
   const spots = useRef<THREE.SpotLight[]>([])
   const delta = useMemo(() => new THREE.Vector3(), [])
+  // driver's eye from the model's bounds (left-hand drive): high in the cabin, a little behind mid-car.
+  // Measured during render, before the model is mounted under the moving body (so in car space).
+  const eye = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(rig.root)
+    const size = box.getSize(new THREE.Vector3())
+    const [nx, ny, nz] = def.cockpit ?? [0, 0, 0]
+    return new THREE.Vector3(box.min.x + size.x * 0.69 + nx, box.min.y + size.y * 0.8 + ny, box.max.z - size.z * 0.45 + nz)
+  }, [rig, def])
   const spotTargets = useMemo(
     () =>
       rig.headlightPositions.map((p) => {
@@ -39,6 +47,7 @@ export function Car({ def, onRig, onMove }: Props) {
   useEffect(() => {
     onRig?.(rig)
     configureDrive({ topSpeedKmh: def.drive.topSpeed, accel: def.drive.accel, ...rig.dims })
+    drive.eye.copy(eye)
     engine.configure(def.engine)
     if (import.meta.env.DEV) Object.assign(window, { __rig: rig, __drive: drive, __gl: gl })
     if (!useStore.getState().loaded) {
@@ -46,7 +55,7 @@ export function Car({ def, onRig, onMove }: Props) {
       // warm the cache for the other cars (dropdown + showroom) once the first one is on screen
       for (const c of CARS) if (c !== def) useGLTF.preload(modelUrl(c), false, true)
     }
-  }, [rig, def, onRig, gl])
+  }, [rig, def, onRig, gl, eye])
 
   useEffect(() => applyPaint(rig, paint), [paint, rig])
 
