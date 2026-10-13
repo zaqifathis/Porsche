@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
-import { drive } from '../scene/drive'
+import { drive, noseDistance } from '../scene/drive'
 import { engine } from '../audio/engine'
 import { useStore } from '../store'
 import { DRIVABLE_START } from '../city/vectorSource'
@@ -14,9 +14,12 @@ const PORTAL_COLOR = new THREE.Color('#b26bff')
 const GIVE_UP = 1200
 /** Diamonds and the portal go on main roads; smaller streets only if none are loaded nearby. */
 const MAIN_ROADS = new Set(['trunk', 'primary', 'secondary'])
-/** Route line: floats this high over the road; rebuilt at most this often (s). */
+/** Route line: floats this high over the road, starts this far past the nose; rebuilt at most this often (s). */
 const ROUTE_LIFT = 0.7
-const ROUTE_EVERY = 0.4
+const ROUTE_AHEAD = 1.5
+const ROUTE_EVERY = 0.3
+/** Extra picks for a diamond spot the loaded roads connect to. */
+const SPAWN_TRIES = 8
 
 /** Chevron pointing +z, lying flat, for the guide arrow that hovers over the car. */
 function arrowGeometry() {
@@ -51,14 +54,20 @@ const routeFrag = /* glsl */ `
   uniform float uLength;
   uniform vec3 uColor;
   uniform vec3 uCar;
+  uniform vec2 uFwd;
+  uniform float uNose;
   varying vec2 vUv;
   varying vec3 vWorld;
   void main() {
     float d = vUv.x * uLength;
     float dash = smoothstep(0.35, 0.5, fract(d / 6.0 - uTime * 1.6)) * 0.6 + 0.4;
-    // fade out at the target, and around the car (the line is re-planned a few times a second,
-    // so its start trails the car a little; this also keeps it from crowding the camera)
-    float ends = smoothstep(0.0, 8.0, uLength - d) * smoothstep(5.0, 14.0, distance(vWorld.xz, uCar.xz));
+    // fade out at the target, and wherever the line runs over or behind the car (it's re-planned a
+    // few times a second, so its start trails a moving car a little): it begins just past the nose
+    vec2 rel = vWorld.xz - uCar.xz;
+    float along = dot(rel, uFwd);
+    float side = abs(rel.x * uFwd.y - rel.y * uFwd.x);
+    float clear = max(max(smoothstep(uNose, uNose + 1.5, along), smoothstep(2.0, 3.5, side)), 1.0 - smoothstep(-uNose - 4.0, -uNose - 2.5, along));
+    float ends = smoothstep(0.0, 8.0, uLength - d) * clear;
     gl_FragColor = vec4(uColor * 1.4 * dash, 0.8 * ends);
   }
 `
@@ -96,6 +105,8 @@ export function Game() {
   const routeRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>>(null)
   const routeIn = useRef(0)
   const routeFrom = useRef({ x: Infinity, z: Infinity, target: null as THREE.Vector3 | null, version: -1 })
+  /** Whether the last re-plan found a road route (if not, the arrow guides instead). */
+  const routeOk = useRef(false)
   const gemRef = useRef<THREE.Group>(null)
   const portalRef = useRef<THREE.Group>(null)
   const beamRef = useRef<THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>>(null)
@@ -111,7 +122,7 @@ export function Game() {
       new THREE.ShaderMaterial({
         vertexShader: routeVert,
         fragmentShader: routeFrag,
-        uniforms: { uTime: { value: 0 }, uLength: { value: 1 }, uColor: { value: GEM_COLOR.clone() }, uCar: { value: new THREE.Vector3() } },
+        uniforms: { uTime: { value: 0 }, uLength: { value: 1 }, uColor: { value: GEM_COLOR.clone() }, uCar: { value: new THREE.Vector3() }, uFwd: { value: new THREE.Vector2() }, uNose: { value: 2.3 } },
         transparent: true,
         depthWrite: false,
         toneMapped: false,
@@ -175,12 +186,16 @@ export function Game() {
         spawnIn.current = 0.5
         const [min, max] = portalOpen ? [120, 300] : [300, 650]
         const sample = game.sampleRoad
-        const p =
+        const pick = () =>
           sample &&
           (sample(car.x, car.z, min, max, MAIN_ROADS) ??
             sample(car.x, car.z, min, max, DRIVABLE_START) ??
             sample(car.x, car.z, min / 2, max * 1.4, MAIN_ROADS) ??
             sample(car.x, car.z, 60, max * 1.4, DRIVABLE_START))
+        // somewhere the roads actually lead (not across a river with no bridge loaded); if a few
+        // tries find nothing, take the last one anyway and let the arrow guide
+        let p = pick()
+        for (let i = 0; p && i < SPAWN_TRIES && !reachable(car, p); i++) p = pick()
         if (p) {
           game.target = new THREE.Vector3(p.x, car.y, p.z)
           game.targetHeading = p.heading
@@ -240,22 +255,30 @@ export function Game() {
     const showGuide = dist > 12 && !st.warping
     if (route && st.guide === 'route') {
       // route line along the roads, re-planned as the car moves
+      const nose = noseDistance()
       routeMat.uniforms.uTime.value = t
       routeMat.uniforms.uColor.value.copy(color)
       routeMat.uniforms.uCar.value.copy(car)
+      routeMat.uniforms.uFwd.value.set(Math.sin(drive.heading), Math.cos(drive.heading))
+      routeMat.uniforms.uNose.value = nose
       routeIn.current -= dt
       const last = routeFrom.current
       const moved = Math.hypot(car.x - last.x, car.z - last.z)
-      if (routeIn.current <= 0 && (moved > 4 || last.target !== target || last.version !== game.roadsVersion)) {
+      if (routeIn.current <= 0 && (moved > 2 || last.target !== target || last.version !== game.roadsVersion)) {
         routeIn.current = ROUTE_EVERY
         routeFrom.current = { x: car.x, z: car.z, target, version: game.roadsVersion }
-        const geo = buildRoute(car, target)
-        route.geometry.dispose()
-        route.geometry = geo.geometry
-        routeMat.uniforms.uLength.value = geo.length
+        const geo = buildRoute(car, nose + ROUTE_AHEAD, target)
+        routeOk.current = !!geo
+        if (geo) {
+          route.geometry.dispose()
+          route.geometry = geo.geometry
+          routeMat.uniforms.uLength.value = geo.length
+        }
       }
-      route.visible = showGuide
-      return
+      if (routeOk.current) {
+        route.visible = showGuide
+        return
+      }
     }
 
     // guide arrow floating above and ahead of the car, pointing at the target
@@ -316,45 +339,39 @@ export function Game() {
   )
 }
 
-/**
- * Tube floating above the road route from the car to the target (A* over the loaded roads), or a
- * simple arc over the rooftops when no road connection is known yet.
- */
-function buildRoute(car: THREE.Vector3, target: THREE.Vector3): { geometry: THREE.BufferGeometry; length: number } {
+/** Whether the loaded roads connect the car to (x, z). */
+function reachable(car: THREE.Vector3, p: { x: number; z: number }): boolean {
   const roads = game.roads?.()
-  const flat = roads?.length
-    ? findRoute(roadGraph(roads, game.roadsVersion), car.x, car.z, target.x, target.z, Math.sin(drive.heading), Math.cos(drive.heading))
-    : null
+  if (!roads?.length) return true
+  return !!findRoute(roadGraph(roads, game.roadsVersion), car.x, car.z, p.x, p.z)
+}
+
+/**
+ * Tube floating above the road route from just ahead of the car's nose to the target (A* over the
+ * loaded roads), or null when no road connection is known yet.
+ */
+function buildRoute(car: THREE.Vector3, ahead: number, target: THREE.Vector3): { geometry: THREE.BufferGeometry; length: number } | null {
+  const roads = game.roads?.()
+  if (!roads?.length) return null
+  const fx = Math.sin(drive.heading), fz = Math.cos(drive.heading)
+  const sx = car.x + fx * ahead, sz = car.z + fz * ahead
+  const flat = findRoute(roadGraph(roads, game.roadsVersion), sx, sz, target.x, target.z, fx, fz)
+  if (!flat) return null
+  // drop near-duplicate points (they make Catmull-Rom loop), then lift the line over the road
   const pts: THREE.Vector3[] = []
-  if (flat) {
-    // drop near-duplicate points (they make Catmull-Rom loop), then lift the line over the road
-    let total = 0
-    for (let i = 2; i < flat.length; i += 2) total += Math.hypot(flat[i] - flat[i - 2], flat[i + 1] - flat[i - 1])
-    let run = 0
-    for (let i = 0; i < flat.length; i += 2) {
-      if (i) run += Math.hypot(flat[i] - flat[i - 2], flat[i + 1] - flat[i - 1])
-      const p = new THREE.Vector3(flat[i], 0, flat[i + 1])
-      const prev = pts[pts.length - 1]
-      if (prev && i < flat.length - 2 && Math.hypot(p.x - prev.x, p.z - prev.z) < 4) continue
-      const k = total ? run / total : 0
-      p.y = THREE.MathUtils.lerp(car.y, target.y, k) + ROUTE_LIFT
-      pts.push(p)
-    }
+  let total = 0
+  for (let i = 2; i < flat.length; i += 2) total += Math.hypot(flat[i] - flat[i - 2], flat[i + 1] - flat[i - 1])
+  let run = 0
+  for (let i = 0; i < flat.length; i += 2) {
+    if (i) run += Math.hypot(flat[i] - flat[i - 2], flat[i + 1] - flat[i - 1])
+    const p = new THREE.Vector3(flat[i], 0, flat[i + 1])
+    const prev = pts[pts.length - 1]
+    if (prev && i < flat.length - 2 && Math.hypot(p.x - prev.x, p.z - prev.z) < 4) continue
+    const k = total ? run / total : 0
+    p.y = THREE.MathUtils.lerp(car.y, target.y, k) + ROUTE_LIFT
+    pts.push(p)
   }
-  if (pts.length < 2) {
-    pts.length = 0
-    const d = Math.hypot(target.x - car.x, target.z - car.z)
-    for (let i = 0; i <= 24; i++) {
-      const k = i / 24
-      pts.push(
-        new THREE.Vector3(
-          THREE.MathUtils.lerp(car.x, target.x, k),
-          THREE.MathUtils.lerp(car.y, target.y, k) + ROUTE_LIFT + Math.sin(k * Math.PI) * Math.min(60, d * 0.15),
-          THREE.MathUtils.lerp(car.z, target.z, k),
-        ),
-      )
-    }
-  }
+  if (pts.length < 2) return null
   const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal')
   const length = curve.getLength()
   const segments = THREE.MathUtils.clamp(Math.round(length / 2), 16, 800)

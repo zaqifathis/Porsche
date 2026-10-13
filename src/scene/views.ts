@@ -16,11 +16,11 @@ export function fitView(v: View, aspect: number): View {
   return [v[3] + (v[0] - v[3]) * k, v[4] + (v[1] - v[4]) * k, v[5] + (v[2] - v[5]) * k, v[3], v[4], v[5]]
 }
 
-/** Place a car-relative view around the car's current position and heading. */
-export function carView(v: View, pos: { x: number; z: number }, heading: number): View {
+/** Place a car-relative view around the car's current position, height and heading. */
+export function carView(v: View, pos: { x: number; y: number; z: number }, heading: number): View {
   const c = Math.cos(heading)
   const s = Math.sin(heading)
   const rx = (x: number, z: number) => pos.x + x * c + z * s
   const rz = (x: number, z: number) => pos.z - x * s + z * c
-  return [rx(v[0], v[2]), v[1], rz(v[0], v[2]), rx(v[3], v[5]), v[4], rz(v[3], v[5])]
+  return [rx(v[0], v[2]), pos.y + v[1], rz(v[0], v[2]), rx(v[3], v[5]), pos.y + v[4], rz(v[3], v[5])]
 }

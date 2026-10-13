@@ -44,6 +44,9 @@ export function configureDrive(c: { topSpeedKmh: number; accel: number; wheelbas
   cfg.halfWidth = c.halfWidth
 }
 
+/** Distance (m) from the car's centre to its nose. */
+export const noseDistance = () => cfg.halfLength
+
 const forward = new THREE.Vector3()
 
 export function resetDrive() {

@@ -28,7 +28,11 @@ export function Car({ def, onRig, onMove }: Props) {
     const box = new THREE.Box3().setFromObject(rig.root)
     const size = box.getSize(new THREE.Vector3())
     const [nx, ny, nz] = def.cockpit ?? [0, 0, 0]
-    return new THREE.Vector3(box.min.x + size.x * 0.69 + nx, box.min.y + size.y * 0.8 + ny, box.max.z - size.z * 0.45 + nz)
+    const eye = new THREE.Vector3(box.min.x + size.x * 0.69 + nx, box.min.y + size.y * 0.8 + ny, box.max.z - size.z * 0.45 + nz)
+    // sit square behind the steering wheel when the model has one as its own part
+    const wheel = rig.root.getObjectByName('part:steering')
+    if (wheel) eye.x = new THREE.Box3().setFromObject(wheel).getCenter(new THREE.Vector3()).x
+    return eye
   }, [rig, def])
   const spotTargets = useMemo(
     () =>
